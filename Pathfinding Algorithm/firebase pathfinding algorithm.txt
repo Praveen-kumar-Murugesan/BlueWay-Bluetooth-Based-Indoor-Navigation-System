@@ -1,0 +1,199 @@
+const {onRequest} = require("firebase-functions/v2/https");
+const logger = require("firebase-functions/logger");
+
+const functions = require('firebase-functions');
+
+exports.calculateSquare = functions.https.onCall((data, context) => {
+    const { start_vertex, productList, dataList } = data;
+
+    productList.forEach(vertex => {
+        if (!dataList.includes(vertex)) {
+            return('001');
+        }
+    });
+
+    let startVertex = start_vertex;
+    console.log("start: ",startVertex);
+    const verticesToVisitBackup = productList.map(item => parseInt(item));
+    const verticesWorking = dataList.map(item => parseInt(item));
+    const verticesToVisit = verticesToVisitBackup;
+    console.log("verticesToVisitBackup:", verticesToVisitBackup);
+    console.log("verticesWorking:", verticesWorking);
+    console.log("verticesToVisit:", verticesToVisit);
+    
+    const NO_PARENT = -1;
+
+    // Using Dijkstra, storing intermediate nodes covering the shortest distance
+    function dijkstra(adjacencyMatrix, startVertex) {
+        const nVertices = adjacencyMatrix.length;
+        const shortestDistances = new Array(nVertices).fill(Number.MAX_SAFE_INTEGER);
+        const added = new Array(nVertices).fill(false);
+        const parents = new Array(nVertices).fill(NO_PARENT);
+
+        shortestDistances[startVertex] = 0;
+
+        for (let i = 0; i < nVertices - 1; i++) {
+            let nearestVertex = -1;
+            let shortestDistance = Number.MAX_SAFE_INTEGER;
+
+            for (let vertexIndex = 0; vertexIndex < nVertices; vertexIndex++) {
+                if (!added[vertexIndex] && shortestDistances[vertexIndex] < shortestDistance) {
+                    nearestVertex = vertexIndex;
+                    shortestDistance = shortestDistances[vertexIndex];
+                }
+            }
+
+            added[nearestVertex] = true;
+
+            for (let vertexIndex = 0; vertexIndex < nVertices; vertexIndex++) {
+                const edgeDistance = adjacencyMatrix[nearestVertex][vertexIndex];
+
+                if (edgeDistance > 0 && shortestDistance + edgeDistance < shortestDistances[vertexIndex]) {
+                    parents[vertexIndex] = nearestVertex;
+                    shortestDistances[vertexIndex] = shortestDistance + edgeDistance;
+                }
+            }
+        }
+
+        const results = [];
+
+        for (let vertexIndex = 0; vertexIndex < nVertices; vertexIndex++) {
+            if (vertexIndex !== startVertex) {
+                const path = printPath(vertexIndex, parents);
+                const distance = shortestDistances[vertexIndex];
+                const pathStr = path.join('');
+                results.push([startVertex, vertexIndex, distance, pathStr]);
+            }
+        }
+
+        return results;
+    }
+
+    function printPath(currentVertex, parents) {
+        const path = [];
+
+        if (currentVertex === NO_PARENT) {
+            return path;
+        }
+
+        path.push(...printPath(parents[currentVertex], parents));
+        path.push(currentVertex);
+
+        return path;
+    }
+
+    // Example usage
+    const adjacencyMatrix = [
+        [0, 10, 99999, 12, 99999, 99999, 99999, 99999, 99999],
+        [10, 0, 10, 99999, 12, 99999, 99999, 99999, 99999],
+        [99999, 10, 0, 99999, 99999, 12, 99999, 99999, 99999],
+        [12, 99999, 99999, 0, 10, 99999, 12, 99999, 99999],
+        [99999, 12, 99999, 10, 0, 10, 99999, 12, 99999],
+        [99999, 99999, 12, 99999, 10, 0, 99999, 99999, 12],
+        [99999, 99999, 99999, 12, 99999, 99999, 0, 10, 99999],
+        [99999, 99999, 99999, 99999, 12, 99999, 10, 0, 10],
+        [99999, 99999, 99999, 99999, 99999, 12, 99999, 10, 0]
+    ];
+
+    let sub = 0;
+
+    for (let i = 0; i < startVertex; i++) {
+        if (!verticesWorking.includes(i)) {
+            sub++;
+        }
+    }
+
+    const adjustedStartVertex = startVertex - sub;
+    // console.log("adjustedStartVertex:", adjustedStartVertex);
+
+    for (let i = adjacencyMatrix.length - 1; i >= 0; i--) {
+        if (!verticesWorking.includes(i)) {
+            adjacencyMatrix.splice(i, 1);
+            for (let row of adjacencyMatrix) {
+                row.splice(i, 1);
+            }
+        }
+    }
+
+    const results = [];
+    const res = [];
+
+    for (let i = 0; i < adjacencyMatrix.length; i++) {
+        results.push(dijkstra(adjacencyMatrix, i));
+    }
+    // console.log("results:", results);
+    for (let i = 0; i < results.length; i++) {
+        for (let j = 0; j < results[i].length; j++) {
+            res.push(results[i][j]);
+        }
+    }
+    // console.log("res:", res);
+    function findPaths(res, startVertex, verticesToVisit, currentPath, currentDistance, visited) {
+        if (!verticesToVisit.length) {
+            return [[currentPath, currentDistance]];
+        }
+
+        const allPaths = [];
+
+        for (let entry of res) {
+            if (entry[0] === startVertex && verticesToVisit.includes(entry[1]) && !visited.includes(entry[1])) {
+                const newVerticesToVisit = verticesToVisit.slice();
+                newVerticesToVisit.splice(newVerticesToVisit.indexOf(entry[1]), 1);
+
+                const newPath = currentPath + entry[1];
+                const newDistance = currentDistance + entry[2];
+                console.log("newVerticesToVisit:", newVerticesToVisit);
+                console.log("newPath:", newPath);
+                console.log("newDistance:", newDistance);
+                const newVisited = visited.slice();
+                newVisited.push(startVertex);
+                console.log("newVisited:", newVisited);
+                const subPaths = findPaths(res, entry[1], newVerticesToVisit, newPath, newDistance, newVisited);
+                console.log("subPaths:", subPaths);
+                allPaths.push(...subPaths);
+            }
+        }
+
+        return allPaths;
+    }
+
+    const allPaths = findPaths(res, adjustedStartVertex, verticesToVisit, String(adjustedStartVertex), 0, [adjustedStartVertex]);
+    console.log("allPaths:", allPaths);
+    let minDistance = Number.MAX_SAFE_INTEGER;
+    let minPath = '';
+
+    for (let [path, distance] of allPaths) {
+        if (distance < minDistance) {
+            minDistance = distance;
+            minPath = path;
+        }
+    }
+
+    console.log("Minimum Distance:", minDistance);
+    console.log("Path:", minPath);
+
+    let originalPath = '';
+
+    for (let i = 0; i < minPath.length - 1; i++) {
+        const startVertex = Number(minPath[i]);
+        const endVertex = Number(minPath[i + 1]);
+
+        for (let entry of res) {
+            if (entry[0] === startVertex && entry[1] === endVertex) {
+                originalPath += entry[3];
+            }
+        }
+    }
+
+    const result = [verticesWorking[Number(originalPath[0])]];
+
+    for (let i = 1; i < originalPath.length; i++) {
+        if (originalPath[i] !== originalPath[i - 1]) {
+            result.push(verticesWorking[Number(originalPath[i])]);
+        }
+    }
+
+    const ans = result.join('');
+    console.log(ans);
+    return { result: ans };
+});
