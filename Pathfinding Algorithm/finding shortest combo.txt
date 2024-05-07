@@ -1,0 +1,10 @@
+min_dis=99999
+path_input=''
+all_paths = [('0123', 114), ('0132', 142), ('0213', 170), ('0231', 141), ('0312', 198), ('0321', 141)]
+for path, distance in all_paths:
+    if min_dis > distance:
+        path_input=path
+        min_dis=distance
+
+print(min_dis)
+print(path_input)

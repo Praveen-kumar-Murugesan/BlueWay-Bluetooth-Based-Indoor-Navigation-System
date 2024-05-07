@@ -1,0 +1,143 @@
+import sys
+
+NO_PARENT = -1
+
+#using dijkstra storing intermediate nodes covering the shortest distance
+def dijkstra(adjacency_matrix, start_vertex):
+    n_vertices = len(adjacency_matrix[0])
+
+    shortest_distances = [sys.maxsize] * n_vertices
+    added = [False] * n_vertices
+    for vertex_index in range(n_vertices):
+        shortest_distances[vertex_index] = sys.maxsize
+        added[vertex_index] = False
+    # print(shortest_distances)
+    # print(added)
+    shortest_distances[start_vertex] = 0
+    # print(shortest_distances)
+    parents = [-1] * n_vertices
+    
+    parents[start_vertex] = NO_PARENT
+    # print(parents)
+    for i in range(1, n_vertices):
+        nearest_vertex = -1
+        shortest_distance = sys.maxsize
+        for vertex_index in range(n_vertices):
+            if not added[vertex_index] and shortest_distances[vertex_index] < shortest_distance:
+                nearest_vertex = vertex_index
+                shortest_distance = shortest_distances[vertex_index]
+        
+        added[nearest_vertex] = True
+        for vertex_index in range(n_vertices):
+            edge_distance = adjacency_matrix[nearest_vertex][vertex_index]
+            
+            if edge_distance > 0 and shortest_distance + edge_distance < shortest_distances[vertex_index]:
+                parents[vertex_index] = nearest_vertex
+                shortest_distances[vertex_index] = shortest_distance + edge_distance
+    
+    results = []
+    for vertex_index in range(n_vertices):
+        if vertex_index != start_vertex:
+            path = print_path(vertex_index, parents)
+            distance = shortest_distances[vertex_index]
+            path_str = ''.join(map(str, path))
+            result = [start_vertex, vertex_index, distance, path_str]
+            results.append(result)
+    # print(results)
+    return results
+
+def print_path(current_vertex, parents):
+    path = []
+    if current_vertex == NO_PARENT:
+        return path
+    path += print_path(parents[current_vertex], parents)
+    path.append(current_vertex)
+    return path
+
+if __name__ == '__main__':
+    adjacency_matrix = [
+    [0, 2, 99999, 99999, 4, 1, 99999, 2, 99999],
+    [2, 0, 3, 99999, 3, 99999, 99999, 99999, 99999],
+    [99999, 3, 0, 1, 99999, 99999, 99999, 99999, 2],
+    [99999, 99999, 1, 0, 1, 99999, 99999, 99999, 99999],
+    [4, 3, 99999, 1, 0, 99999, 99999, 99999, 99999],
+    [1, 99999, 99999, 99999, 99999, 0, 4, 99999, 99999],
+    [99999, 99999, 99999, 99999, 99999, 4, 0, 99999, 99999],
+    [2, 99999, 99999, 99999, 99999, 99999, 99999, 0, 99999],
+    [99999, 99999, 2, 99999, 99999, 99999, 99999, 99999, 0]
+]
+    results=[]
+    res=[]
+    
+    for i in range(0,len(adjacency_matrix)):
+        results.append(dijkstra(adjacency_matrix, i))
+    for i in range(0,len(results)):
+        for j in range(0,len(results[i])):
+            res.append(results[i][j])
+    # for i in res:
+    #     print(i)
+        
+    #finding all possible path to be visited
+    def find_paths(res, start_vertex, vertices_to_visit, current_path, current_distance, visited):
+        if not vertices_to_visit:
+            return [(current_path, current_distance)]
+    
+        all_paths = []
+    
+        for entry in res:
+            if entry[0] == start_vertex and entry[1] in vertices_to_visit and entry[1] not in visited:
+                new_vertices_to_visit = vertices_to_visit.copy()
+                new_vertices_to_visit.remove(entry[1])
+    
+                new_path = current_path + str(entry[1])
+                new_distance = current_distance + entry[2]
+    
+                new_visited = visited.copy()
+                new_visited.append(start_vertex)
+    
+                subpaths = find_paths(res, entry[1], new_vertices_to_visit, new_path, new_distance, new_visited)
+                all_paths.extend(subpaths)
+    
+        return all_paths
+        
+    start_vertex = int(input("Enter the start vertex: "))
+    vertices_to_visit = list(map(int, input("Enter the vertices to visit (comma-separated): ").split(',')))
+    
+    all_paths = find_paths(res, start_vertex, vertices_to_visit, str(start_vertex), 0, [start_vertex])
+    
+    # for path, distance in all_paths:
+    #     print("Path:", path)
+    #     print("Distance:", distance)
+    # print()
+    # print(all_paths)
+    
+    #finding minimum distance path from all the possible paths
+    min_dis=99999
+    path_input=''
+    for path, distance in all_paths:
+        if min_dis > distance:
+            path_input=path
+            min_dis=distance
+    
+    # print(min_dis)
+    # print(path_input)
+    
+    #extracting the original path from the graph
+    original_path=[]
+    path_length=len(path_input)
+    for i in range(path_length - 1):
+        start_vertex = int(path_input[i])
+        end_vertex = int(path_input[i + 1])
+    
+        for entry in res:
+            if entry[0] == start_vertex and entry[1] == end_vertex:
+                original_path.append(entry[3])
+    
+    x = ''.join(original_path)
+    
+    result = [x[0]]
+    for i in range(1, len(x)):
+        if x[i] != x[i - 1]:
+            result.append(x[i])
+    
+    print(''.join(result))
